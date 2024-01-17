@@ -1,0 +1,58 @@
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+
+dane=pd.read_csv("http://theta.edu.pl/wp-content/uploads/2023/10/anemiaMale.csv", sep=';')
+dane.head()
+dane.drop('YOB', axis=1)
+
+
+dane["City"]=dane["City"].replace('-9', np.nan)
+dane["Hemoglobin"]=dane["Hemoglobin"].replace(0, np.nan)
+dane.head()
+
+dane=dane.dropna()
+dane.head()
+
+
+dane2=dane[dane['City'] == 'Wrocław'].copy()
+dane2.head()
+
+plt.figure(figsize=(10, 6))
+plt.scatter(dane2['age'], dane2["Creatinine"], alpha=0.5)
+plt.title('Zależność pomiędzy wiekiem a poziomem kreatyniny')
+plt.xlabel('Wiek')
+plt.ylabel('Poziom kreatyniny')
+plt.grid(True)
+plt.show()
+
+
+y=dane2["Creatinine"]
+x=sm.add_constant(dane2["age"])
+
+model = sm.OLS(y,x).fit()
+model.summary()
+
+from scipy.stats import shapiro
+
+residuals = model.resid
+wynik = shapiro(residuals)
+print(wynik)
+
+import seaborn as sns
+
+sns.histplot(residuals).set_title("histogram reszt z modelu")
+plt.show
+
+sns.regplot(x="Creatinine", y='age', data=dane2).set_title("age vs Creatinine regresion")
+plt.show
+
+x = dane2[['age', 'VitB12']]
+y = dane2['Creatinine']
+
+x = sm.add_constant(x)
+
+model2=sm.OLS(y,x)
+wynik2 = model2.fit()
+print(wynik2.summary())
