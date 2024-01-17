@@ -1,3 +1,5 @@
+Odniesienie do skryptu "python code.py"
+
 Istotą działania programu jest fakt, że ma on stworzyć pewnego rodzaju ranking plików, które posiadają najwięcej zadeklarowanych przez użytkownika wyrazów przy jednoczesnym zawieraniu jak najmniejszej ilości zbędnych wyrazów. 
 Każdy plik zawiera opisy różnych kolekcji, a program ocenia, który plik najlepiej spełnia zadane wymagania. 
 Działa to poprzez przypisanie współczynnika dopasowania i liczby zbędnych elementów każdemu plikowi na podstawie porównania z wymaganymi elementami. 
