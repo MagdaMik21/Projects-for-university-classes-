@@ -1,0 +1,295 @@
+import tkinter as tk
+from tkinter import messagebox
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from datetime import datetime
+import json
+import os
+
+class Pacjent:
+    def __init__(self, imie, nazwisko, data_urodzenia, pesel, miejsce_zamieszkania, data_przyjecia, opisy, lekarz):
+        self.imie = imie
+        self.nazwisko = nazwisko
+        self.data_urodzenia = data_urodzenia
+        self.pesel = pesel
+        self.miejsce_zamieszkania = miejsce_zamieszkania
+        self.data_przyjecia = data_przyjecia
+        self.opisy = opisy
+        self.lekarz = lekarz
+
+    def dodaj_opis(self, nowy_opis, program):
+        nowa_data = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.opisy.append((nowa_data, nowy_opis))
+        program.zapisz_pacjentow()
+        return nowa_data
+
+class DodajPacjenta:
+    def __init__(self, parent, program):
+        self.parent = parent
+        self.program = program
+        self.okno_dodaj = tk.Toplevel(self.parent)
+        self.okno_dodaj.title("Dodaj Pacjenta")
+
+        self.label_imie = tk.Label(self.okno_dodaj, text="Imię:")
+        self.entry_imie = tk.Entry(self.okno_dodaj)
+        self.label_nazwisko = tk.Label(self.okno_dodaj, text="Nazwisko:")
+        self.entry_nazwisko = tk.Entry(self.okno_dodaj)
+        self.label_data_urodzenia = tk.Label(self.okno_dodaj, text="Data urodzenia:")
+        self.entry_data_urodzenia = tk.Entry(self.okno_dodaj)
+        self.label_pesel = tk.Label(self.okno_dodaj, text="PESEL:")
+        self.entry_pesel = tk.Entry(self.okno_dodaj)
+        self.label_miejsce_zamieszkania = tk.Label(self.okno_dodaj, text="Miejsce zamieszkania:")
+        self.entry_miejsce_zamieszkania = tk.Entry(self.okno_dodaj)
+        self.label_data_przyjecia = tk.Label(self.okno_dodaj, text="Data przyjęcia:")
+        self.entry_data_przyjecia = tk.Entry(self.okno_dodaj)
+        self.label_opis = tk.Label(self.okno_dodaj, text="Opis:")
+        self.entry_opis = tk.Text(self.okno_dodaj, height=5, width=30)
+        self.label_lekarz = tk.Label(self.okno_dodaj, text="Lekarz prowadzący:")
+        self.entry_lekarz = tk.Entry(self.okno_dodaj)
+
+        self.label_imie.grid(row=0, column=0)
+        self.entry_imie.grid(row=0, column=1)
+        self.label_nazwisko.grid(row=1, column=0)
+        self.entry_nazwisko.grid(row=1, column=1)
+        self.label_data_urodzenia.grid(row=2, column=0)
+        self.entry_data_urodzenia.grid(row=2, column=1)
+        self.label_pesel.grid(row=3, column=0)
+        self.entry_pesel.grid(row=3, column=1)
+        self.label_miejsce_zamieszkania.grid(row=4, column=0)
+        self.entry_miejsce_zamieszkania.grid(row=4, column=1)
+        self.label_data_przyjecia.grid(row=5, column=0)
+        self.entry_data_przyjecia.grid(row=5, column=1)
+        self.label_opis.grid(row=6, column=0)
+        self.entry_opis.grid(row=6, column=1)
+        self.label_lekarz.grid(row=7, column=0)
+        self.entry_lekarz.grid(row=7, column=1)
+
+
+        przycisk_zarejestruj = tk.Button(self.okno_dodaj, text="Zarejestruj", command=self.zarejestruj_pacjenta)
+        przycisk_zarejestruj.grid(row=8, columnspan=2)
+
+        
+
+    def zarejestruj_pacjenta(self):
+        imie = self.entry_imie.get()
+        nazwisko = self.entry_nazwisko.get()
+        data_urodzenia = self.entry_data_urodzenia.get()
+        pesel = self.entry_pesel.get()
+        miejsce_zamieszkania = self.entry_miejsce_zamieszkania.get()
+        data_przyjecia = self.entry_data_przyjecia.get()
+        opis = self.entry_opis.get("1.0", 'end-1c')
+        lekarz = self.entry_lekarz.get()
+
+        if len(pesel) != 11:
+            messagebox.showerror("Błąd", "Nieprawidłowa długość numeru PESEL. Numer PESEL powinien mieć 11 cyfr.")
+            return
+
+        if any(not pole for pole in [imie, nazwisko, data_urodzenia, pesel, miejsce_zamieszkania, data_przyjecia, opis, lekarz]):
+            messagebox.showerror("Błąd", "Wszystkie pola muszą być uzupełnione. Proszę poprawić brakujące dane.")
+            return    
+
+        nowy_pacjent = Pacjent(imie, nazwisko, data_urodzenia, pesel, miejsce_zamieszkania, data_przyjecia,
+                               [(data_przyjecia, opis)], lekarz)
+        self.program.pacjenci.append(nowy_pacjent)
+        self.program.zapisz_pacjentow()
+        messagebox.showinfo("Potwierdzenie", "Pacjent zarejestrowany pomyślnie.")
+        self.okno_dodaj.destroy()
+
+
+class PrzegladajPacjentow:
+    def __init__(self, parent, program):
+        self.parent = parent
+        self.program = program
+        self.okno_przegladaj = tk.Toplevel(self.parent)
+        self.okno_przegladaj.title("Przeglądaj Pacjentów")
+
+        self.lista_pacjentow = tk.Listbox(self.okno_przegladaj)
+        self.lista_pacjentow.pack()
+
+        for pacjent in self.program.pacjenci:
+            self.lista_pacjentow.insert(tk.END, f"{pacjent.imie} {pacjent.nazwisko}")
+
+        przycisk_pokaz = tk.Button(self.okno_przegladaj, text="Pokaż Kartę Pacjenta", command=self.pokaz_karte_pacjenta)
+        przycisk_pokaz.pack()
+
+    def pokaz_karte_pacjenta(self):
+        indeks_wybranego_pacjenta = self.lista_pacjentow.curselection()
+        if indeks_wybranego_pacjenta:
+            indeks_wybranego_pacjenta = indeks_wybranego_pacjenta[0]
+            pacjent = self.program.pacjenci[indeks_wybranego_pacjenta]
+            RaportPacjenta(self.okno_przegladaj, self.program, pacjent)
+
+
+class UsunPacjenta:
+    def __init__(self, parent, program):
+        self.parent = parent
+        self.program = program
+        self.okno_usun = tk.Toplevel(self.parent)
+        self.okno_usun.title("Usuń Pacjenta")
+
+        self.lista_pacjentow_do_usuniecia = tk.Listbox(self.okno_usun)
+        self.lista_pacjentow_do_usuniecia.pack()
+
+        for pacjent in self.program.pacjenci:
+            self.lista_pacjentow_do_usuniecia.insert(tk.END, f"{pacjent.imie} {pacjent.nazwisko}")
+
+        przycisk_usun = tk.Button(self.okno_usun, text="Usuń", command=self.potwierdz_usuniecie)
+        przycisk_usun.pack()
+
+    def potwierdz_usuniecie(self):
+        indeks_wybranego_pacjenta = self.lista_pacjentow_do_usuniecia.curselection()
+        if indeks_wybranego_pacjenta:
+            indeks_wybranego_pacjenta = indeks_wybranego_pacjenta[0]
+            pacjent = self.program.pacjenci[indeks_wybranego_pacjenta]
+            potwierdzenie = messagebox.askyesno("Potwierdzenie",
+                                               f"Czy na pewno chcesz usunąć pacjenta {pacjent.imie} {pacjent.nazwisko}?")
+            if potwierdzenie:
+                self.program.pacjenci.pop(indeks_wybranego_pacjenta)
+                self.program.zapisz_pacjentow()
+                messagebox.showinfo("Potwierdzenie", "Pacjent usunięty pomyślnie.")
+                self.okno_usun.destroy()
+
+
+class RaportPacjenta:
+    def __init__(self, parent, program, pacjent):
+        self.parent = parent
+        self.program = program
+        self.pacjent = pacjent
+        self.okno_karty = tk.Toplevel(self.parent)
+        self.okno_karty.title("Karta Pacjenta")
+
+        label_imie_nazwisko = tk.Label(self.okno_karty, text=f"{pacjent.imie} {pacjent.nazwisko}")
+        label_imie_nazwisko.pack()
+
+        label_data_urodzenia = tk.Label(self.okno_karty, text=f"Data urodzenia: {pacjent.data_urodzenia}")
+        label_data_urodzenia.pack()
+
+        label_pesel = tk.Label(self.okno_karty, text=f"PESEL: {pacjent.pesel}")
+        label_pesel.pack()
+
+        label_miejsce_zamieszkania = tk.Label(self.okno_karty,
+                                               text=f"Miejsce zamieszkania: {pacjent.miejsce_zamieszkania}")
+        label_miejsce_zamieszkania.pack()
+
+        label_data_przyjecia = tk.Label(self.okno_karty, text=f"Data przyjęcia: {pacjent.data_przyjecia}")
+        label_data_przyjecia.pack()
+
+        label_opis = tk.Label(self.okno_karty, text=f"Opis: {', '.join([opis[1] for opis in pacjent.opisy])}")
+        label_opis.pack()
+
+        label_lekarz = tk.Label(self.okno_karty, text=f"Lekarz prowadzący: {pacjent.lekarz}")
+        label_lekarz.pack()
+
+        label_nowy_opis = tk.Label(self.okno_karty, text="Nowy Opis:")
+        label_nowy_opis.pack()
+        self.entry_nowy_opis = tk.Text(self.okno_karty, height=5, width=30)
+        self.entry_nowy_opis.pack()
+
+        przycisk_dodaj_opis = tk.Button(self.okno_karty, text="Dodaj Nowy Opis", command=self.dodaj_opis)
+        przycisk_dodaj_opis.pack()
+
+        przycisk_generuj_raport = tk.Button(self.okno_karty, text="Generuj Raport Pacjenta", command=self.generuj_raport)
+        przycisk_generuj_raport.pack()
+
+    def dodaj_opis(self):
+        nowy_opis = self.entry_nowy_opis.get("1.0", 'end-1c')
+        nowa_data = self.pacjent.dodaj_opis(nowy_opis, self.program)
+        messagebox.showinfo("Potwierdzenie", f"Nowy opis dodany pomyślnie: {nowa_data}")
+
+    def generuj_raport(self):
+        program_folder = os.path.dirname(os.path.abspath(__file__))
+
+        pdf_filename = os.path.join(program_folder, f"Raport_{self.pacjent.imie}_{self.pacjent.nazwisko}.pdf")
+
+        pdfmetrics.registerFont(TTFont('Arial', 'arial.ttf'))
+
+        pdf = canvas.Canvas(pdf_filename, pagesize=letter)
+        pdf.setFont('Arial', 12)
+
+        nazwa_naglowka = "Karta Pacjenta"
+        pdf.drawCentredString(letter[0] / 2, letter[1] - 50, nazwa_naglowka)
+
+        pdf.line(letter[0] / 4, letter[1] - 60, 3 * letter[0] / 4, letter[1] - 60)
+
+        pdf.drawString(100, 700, f"Imię: {self.pacjent.imie}")
+        pdf.drawString(100, 680, f"Nazwisko: {self.pacjent.nazwisko}")
+        pdf.drawString(100, 660, f"Data urodzenia: {self.pacjent.data_urodzenia}")
+        pdf.drawString(100, 640, f"PESEL: {self.pacjent.pesel}")
+        pdf.drawString(100, 620, f"Miejsce zamieszkania: {self.pacjent.miejsce_zamieszkania}")
+        pdf.drawString(100, 600, f"Data przyjęcia: {self.pacjent.data_przyjecia}")
+        pdf.drawString(100, 580, f"Opis: {', '.join([opis[1] for opis in self.pacjent.opisy])}")
+        pdf.drawString(100, 560, f"Lekarz prowadzący: {self.pacjent.lekarz}")
+        pdf.save()
+
+        messagebox.showinfo("Potwierdzenie", f"Raport wygenerowany pomyślnie: {pdf_filename}")
+
+
+class Program:
+    def __init__(self):
+        self.pacjenci = self.wczytaj_pacjentow()
+        self.okno_glowne()
+
+    def okno_glowne(self):
+        self.okno = tk.Tk()
+        self.okno.title("System Obsługi Rejestracji Pacjentów")
+
+        przycisk_dodaj = tk.Button(self.okno, text="Dodaj Pacjenta", command=self.dodaj_pacjenta)
+        przycisk_przegladaj = tk.Button(self.okno, text="Przeglądaj Pacjentów", command=self.przegladaj_pacjentow)
+        przycisk_usun = tk.Button(self.okno, text="Usuń Pacjenta", command=self.usun_pacjenta)
+
+        przycisk_dodaj.pack()
+        przycisk_przegladaj.pack()
+        przycisk_usun.pack()
+
+        self.okno.mainloop()
+
+    def dodaj_pacjenta(self):
+        DodajPacjenta(self.okno, self)
+
+    def przegladaj_pacjentow(self):
+        PrzegladajPacjentow(self.okno, self)
+
+    def usun_pacjenta(self):
+        UsunPacjenta(self.okno, self)
+
+    def zapisz_pacjentow(self):
+        with open("pacjenci.json", "w", encoding="utf-8") as plik:
+            pacjenci_do_zapisu = []
+            for pacjent in self.pacjenci:
+                pacjenci_do_zapisu.append({
+                    "imie": pacjent.imie,
+                    "nazwisko": pacjent.nazwisko,
+                    "data_urodzenia": pacjent.data_urodzenia,
+                    "pesel": pacjent.pesel,
+                    "miejsce_zamieszkania": pacjent.miejsce_zamieszkania,
+                    "data_przyjecia": pacjent.data_przyjecia,
+                    "opisy": pacjent.opisy,
+                    "lekarz": pacjent.lekarz
+                })
+            json.dump(pacjenci_do_zapisu, plik, ensure_ascii=False)
+
+    def wczytaj_pacjentow(self):
+        try:
+            with open("pacjenci.json", "r", encoding="utf-8") as plik:
+                dane = json.load(plik)
+                pacjenci = []
+                for pacjent in dane:
+                    pacjenci.append(Pacjent(
+                        pacjent["imie"],
+                        pacjent["nazwisko"],
+                        pacjent["data_urodzenia"],
+                        pacjent["pesel"],
+                        pacjent["miejsce_zamieszkania"],
+                        pacjent["data_przyjecia"],
+                        pacjent["opisy"],
+                        pacjent["lekarz"]
+                    ))
+                return pacjenci
+        except FileNotFoundError:
+            return []
+
+
+if __name__ == "__main__":
+    program = Program()
